@@ -9,19 +9,22 @@
 #import <Foundation/Foundation.h>
 #import <CoreBluetooth/CoreBluetooth.h>
 
+
 #define INSULINK_NAME                       @"Insulink"
 #define INSULINK_SERVICE_UUID               @"D000"
 #define INSULINK_CHARACTER_INSULINK         @"D001"
 #define INSULINK_CHARACTER_RESPONSE         @"D002"
 #define INSULINK_CHARACTER_TIME             @"D003"
 
+extern NSString *const DNUBleStateChanged;
+
 typedef enum : NSUInteger {
-    BLEManagerStateDeviceUnSupport,
-    BLEManagerStatePowerOff,
+    BLEManagerStatePowerOff = 0,
     BLEManagerStatePowerOn,
     BLEManagerStateScanning,
     BLEManagerStateDisConnected,
     BLEManagerStateConnecting,
+    BLEManagerStateConnectFail,
     BLEManagerStateConnected,
     BLEManagerStateTransmitting
 } BLEManagerState;
@@ -135,6 +138,7 @@ typedef void (^ConnectResultHandler)(BOOL success,NSError *error);
 - (void)stopScanning;
 - (void)disConnect;
 - (void)clearDevices;
+- (void)bleStateChanged:(BLEManagerState)state;
 
 - (CBCharacteristic *)getCharacteristicWithUUID:(NSString *)uuid;
 

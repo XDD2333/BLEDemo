@@ -7,8 +7,12 @@
 //
 
 #define DEVICE_CONNECTION_TIMEOUT   (10)
+#define DEVICE_SEARCH_TIMEOUT       (5)
 
 #import "BLEManager.h"
+
+NSString *const DNUBleStateChanged = @"com.bleManager.stateChange";
+
 @interface BLEManager()<CBCentralManagerDelegate,CBPeripheralDelegate>
 
 @end
@@ -43,6 +47,8 @@
          - (void)centralManager:(CBCentralManager *)central didDiscoverPeripheral:(CBPeripheral *)peripheral advertisementData:(NSDictionary *)advertisementData RSSI:(NSNumber *)RSSI;
          */
         [_centerManager scanForPeripheralsWithServices:@[[CBUUID UUIDWithString:INSULINK_SERVICE_UUID]] options:@{CBCentralManagerScanOptionAllowDuplicatesKey : @(NO)}];
+        [self performSelector:@selector(timeOutMethodForSearch) withObject:nil afterDelay:DEVICE_SEARCH_TIMEOUT];
+        [self bleStateChanged:BLEManagerStateScanning];
     }
 }
 
@@ -55,6 +61,12 @@
     if (_myPerpherral) {
         [_centerManager cancelPeripheralConnection:_myPerpherral];
     }
+}
+
+// 蓝牙状态改变
+- (void)bleStateChanged:(BLEManagerState)state{
+    NSDictionary *dic = @{@"state" : @(state)};
+    [[NSNotificationCenter defaultCenter] postNotificationName:DNUBleStateChanged object:dic];
 }
 
 - (CBCharacteristic *)getCharacteristicWithUUID:(NSString *)uuid{
@@ -76,6 +88,7 @@
         
         if ([peripheral state] == CBPeripheralStateDisconnected){
             [_centerManager connectPeripheral:peripheral options:nil];
+            [self bleStateChanged:BLEManagerStateConnecting];
         }else{
             [_centerManager cancelPeripheralConnection:peripheral];
         }
@@ -84,13 +97,23 @@
     }
 }
 
+- (void)cancelTimeOutSearch{
+    [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(timeOutMethodForSearch) object:nil];
+}
+
+- (void)timeOutMethodForSearch{
+    [self cancelTimeOutSearch];
+    [self stopScanning];
+    [_discoveryDelegate searchTimeOut];
+}
+
 -(void)cancelTimeOutAlert
 {
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(timeOutMethodForConnect) object:nil];
 }
 
--(void)timeOutMethodForConnect
-{
+- (void)timeOutMethodForConnect{
+    [_discoveryDelegate connectTimeOut];
     _isTimeOutAlert = YES;
     [self cancelTimeOutAlert];
     [self disconnectPeripheral:_myPerpherral];
@@ -108,7 +131,7 @@
     }
 }
 
-- (void) clearDevices{
+- (void)clearDevices{
     [_perpherralList removeAllObjects];
     [_serviceList removeAllObjects];
     _myPerpherral = nil;
@@ -220,11 +243,13 @@
     [_myPerpherral discoverServices:nil];
     NSString *text = [NSString stringWithFormat:@"成功连接%@",peripheral.name];
     [_discoveryDelegate logMessage:text];
+    [self bleStateChanged:BLEManagerStateConnected];
 }
 
 - (void)centralManager:(CBCentralManager *)central didFailToConnectPeripheral:(CBPeripheral *)peripheral error:(NSError *)error{
     [self cancelTimeOutAlert];
     _connectHandler(NO,error);
+    [self bleStateChanged:BLEManagerStateConnectFail];
 }
 
 - (void)centralManager:(CBCentralManager *)central didDisconnectPeripheral:(CBPeripheral *)peripheral error:(NSError *)error{
@@ -244,6 +269,7 @@
         _connectHandler(NO,error);
     }
     [self clearDevices];
+    [self bleStateChanged:BLEManagerStateDisConnected];
 }
 
 - (void)centralManagerDidUpdateState:(CBCentralManager *)central{
@@ -265,6 +291,7 @@
         {
             NSString *text = [NSString stringWithFormat:@"蓝牙处于关闭状态"];
             [_discoveryDelegate logMessage:text];
+            [self bleStateChanged:BLEManagerStatePowerOff];
         }
             break;
             
@@ -276,6 +303,7 @@
         {
             NSString *text = [NSString stringWithFormat:@"蓝牙已开启"];
             [_discoveryDelegate logMessage:text];
+            [self bleStateChanged:BLEManagerStatePowerOn];
             // 如果蓝牙是开启的,立即开始扫描
             [self startScanning];
         }
@@ -317,6 +345,7 @@
 }
 - (void)peripheral:(CBPeripheral *)peripheral didUpdateValueForCharacteristic:(CBCharacteristic *)characteristic error:(NSError *)error
 {
+    [self bleStateChanged:BLEManagerStateTransmitting];
     if([_characteristicManagerDelegate respondsToSelector:@selector(peripheral:didUpdateValueForCharacteristic:error:)])
         [_characteristicManagerDelegate peripheral:peripheral didUpdateValueForCharacteristic:characteristic error:error];
 }
