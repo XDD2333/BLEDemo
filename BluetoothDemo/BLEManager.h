@@ -35,7 +35,6 @@ typedef void (^ConnectResultHandler)(BOOL success,NSError *error);
 
 @optional
 - (void) didDiscoveryPeripheral;
-- (void) searchTimeOut;
 - (void) connectTimeOut;
 - (void) logMessage:(NSString *)text;
 

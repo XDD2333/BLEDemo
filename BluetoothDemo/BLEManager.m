@@ -47,7 +47,6 @@ NSString *const DNUBleStateChanged = @"com.bleManager.stateChange";
          - (void)centralManager:(CBCentralManager *)central didDiscoverPeripheral:(CBPeripheral *)peripheral advertisementData:(NSDictionary *)advertisementData RSSI:(NSNumber *)RSSI;
          */
         [_centerManager scanForPeripheralsWithServices:@[[CBUUID UUIDWithString:INSULINK_SERVICE_UUID]] options:@{CBCentralManagerScanOptionAllowDuplicatesKey : @(NO)}];
-        [self performSelector:@selector(timeOutMethodForSearch) withObject:nil afterDelay:DEVICE_SEARCH_TIMEOUT];
         [self bleStateChanged:BLEManagerStateScanning];
     }
 }
@@ -95,16 +94,6 @@ NSString *const DNUBleStateChanged = @"com.bleManager.stateChange";
         
         [self performSelector:@selector(timeOutMethodForConnect) withObject:nil afterDelay:DEVICE_CONNECTION_TIMEOUT];
     }
-}
-
-- (void)cancelTimeOutSearch{
-    [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(timeOutMethodForSearch) object:nil];
-}
-
-- (void)timeOutMethodForSearch{
-    [self cancelTimeOutSearch];
-    [self stopScanning];
-    [_discoveryDelegate searchTimeOut];
 }
 
 -(void)cancelTimeOutAlert

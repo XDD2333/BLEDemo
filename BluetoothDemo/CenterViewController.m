@@ -85,7 +85,7 @@
 - (void)writeTime{
     long long time = [[NSDate date] timeIntervalSince1970];
     NSString *timeStr = [self ToHex:time];
-    NSData *data = [self hexToBytes:timeStr];
+    NSData *data = [self hexTimeToBytes:timeStr];
     NSString *text = [NSString stringWithFormat:@"写入时间:%@",[self getFullStringFromDate:time]];
     [self logHandleWithMessage:text];
     [_manager writeCharacteristic:_manager.myPerpherral characteristic:[_manager getCharacteristicWithUUID:INSULINK_CHARACTER_TIME] value:data];
@@ -93,7 +93,7 @@
 
 /**
  *  读取数据
- *  数据长度6字节,第一个字节为序号,第2-5个字节为时间戳,最后一个字节为值
+ *  数据长度6字节,第一个字节为序号,第2-5个字节为时间戳,最后一个字节为胰岛素注射量
  *  @param str 16进制字符串
  */
 - (void)readData:(NSString *)str{
@@ -143,7 +143,23 @@
 {
     NSMutableData* data = [NSMutableData data];
     int idx;
-    for (idx = (int)str.length - 2; idx >= 0; idx-=2) {
+    for (idx = 0; idx <= (int)str.length - 2; idx += 2) {
+        NSRange range = NSMakeRange(idx, 2);
+        NSString* hexStr = [str substringWithRange:range];
+        NSScanner* scanner = [NSScanner scannerWithString:hexStr];
+        unsigned int intValue;
+        [scanner scanHexInt:&intValue];
+        [data appendBytes:&intValue length:1];
+    }
+    return data;
+}
+
+// 16进制时间字符串转为NSData
+- (NSData *)hexTimeToBytes:(NSString *)str
+{
+    NSMutableData* data = [NSMutableData data];
+    int idx;
+    for (idx = (int)str.length - 2; idx >= 0; idx -= 2) {
         NSRange range = NSMakeRange(idx, 2);
         NSString* hexStr = [str substringWithRange:range];
         NSScanner* scanner = [NSScanner scannerWithString:hexStr];
@@ -160,9 +176,9 @@
     NSString *nLetterValue;
     NSString *str =@"";
     int ttmpig;
-    for (int i = 0; i<9; i++) {
-        ttmpig=tmpid%16;
-        tmpid=tmpid/16;
+    for (int i = 0; i < 9; i++) {
+        ttmpig = tmpid % 16;
+        tmpid = tmpid / 16;
         switch (ttmpig)
         {
             case 10:
